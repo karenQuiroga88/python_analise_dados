@@ -82,9 +82,10 @@ def grafico2():
      with sqlite3.connect(f'{caminho}banco01.bd') as conn:
          df = pd.read_sql_query ("""
         SELECT AVG(beer_servings) as cerveja,
-            AVG(beer_servings) as destilados,
+            AVG (spirit_servings) as destilados,
             AVG(wine_servings) as vinhos
-            FROM bebidas                                                                         
+            FROM bebidas   
+                                                                              
 """,conn)
          
      df_melted = df.melt(var_name='Bebidas', value_name= 'Média de Porções')
@@ -102,7 +103,7 @@ def grafico3():
         'Europa': ['Franca', 'Germany', 'Spain', 'Italy', 'Portugal'],
         'Asia':['China','Japan', 'India', 'Thailand'],
         'Africa': [ 'Angola', 'Nigéria', 'Egypt', 'Algeria'],
-        'Americas': ['USA', 'Canada', 'Brasil', 'Argentina', 'Mexico']
+        'Americas': ['USA', 'Canada', 'Brazil', 'Argentina', 'Mexico']
     }
     dados = []
     with sqlite3.connect(f'{caminho}banco01.bd') as conn:
@@ -155,8 +156,7 @@ def comparar():
             textposition = "top center"
         )
         return figuraComparar.to_html()
-    
-            
+                
     return render_template_string("""
     <style>
 /* Fundo geral da página */
@@ -259,8 +259,68 @@ br {
     </form>
 """, opcoes = opcoes)
 
+@app.route('/ver', methods=["POST","GET"])
+def ver_tabela():
+    tabela_disponiveis = ("bebidas", "vingadores")
+    
+    if request.method == "POST":
+        tabela_escolhida = request.form.get("eixo_x")
+        
+        # Conectando ao banco
+        caminho = "./"  # ajuste conforme necessário
+        conn = sqlite3.connect(f'{caminho}banco01.bd')
+        
+        try:
+            df_final = pd.read_sql_query(f"SELECT * FROM {tabela_escolhida}", conn)
+            dados_html = df_final.to_html()
+        except Exception as e:
+            dados_html = f"<p>Erro ao carregar a tabela: {e}</p>"
+        finally:
+            conn.close()
+    else:
+        dados_html = ""
+
+    return render_template_string("""
+        <h2>Escolher Tabelas</h2> 
+        <form method="POST"> 
+            <label for="eixo_x">Eixo X:</label>
+            <select name="eixo_x">
+                {% for tabela in tabela_disponiveis %}                      
+                    <option value="{{tabela}}"> {{tabela}}</option>
+                {% endfor %}                      
+            </select>
+            <br><br>         
+            <input type="submit" value="--Consultar--"> 
+        </form>
+        
+        <div>
+            {{ dados_html | safe }}
+        </div>
+    """, tabela_disponiveis=tabela_disponiveis, dados_html=dados_html)
+
+
+@app.route('/upload', methods=['GET','POST'])
+def upload():
+    if request.method == "POST":
+        recebido = request.files['c_arquivo']
+        if not recebido:
+            return "Nenhum arquivo foi recebido"
+        dfAvengeres = pd.read_csv(recebido, encoding='latin1')
+        conn = sqlite3.connect(f'{caminho}banco01.bd')
+        dfAvengeres.to_sql("vingadores", conn, if_exists="replace", index= False)
+        conn.commit()
+        conn.close()
+        return "Sucesso!"        
+
+
+    return '''
+        <h2>Upload da tabela Avengeres</h2>
+        <form method ="POST" enctype='multipart/form-data'>
+            <input type= 'file' name='c_arquivo' accept.csv'>
+            <input type= 'submit' value='Carregar'>
+        </form>
+'''
 
 if __name__ == '__main__':
     criarBandoDados()
     app.run(debug=True)
-
