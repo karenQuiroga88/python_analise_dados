@@ -1,8 +1,8 @@
 from flask import Flask, request, render_template_string
 import pandas as pd
 import sqlite3
-import plotly.express as px
-import plotly.io as pio
+import plotly.express as px ### Criação rápida e fácil de gráficos interativos a partir de dados
+import plotly.io as pio ### Leitura/escrita de figuras, controle de formatos, I/O (e.g., JSON)
 import random
 import os
 
@@ -99,4 +99,5 @@ def grafico2():
 if __name__ == '__main__':
     criarBandoDados()
     app.run(debug=True)
+
 
