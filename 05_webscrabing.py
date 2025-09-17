@@ -25,8 +25,11 @@ pasta = 'C:/Users/sabado/Desktop/python_analise_dados/python_analise_dados-main/
 bancoDados = "banco_filmes.db"
 saidaCSV = f'filmes_adoro_ciname_{data_hoje}.csv'
 
+## Pega o código HTML retornado pelo site (resposta.text) e passa para o BeautifulSoup.
+##O html.parser é o analisador que transforma o HTML em uma árvore de objetos, facilitando encontrar tags como <div>, <a>, <p>, etc.
+##A partir do soup, você pode buscar elementos com métodos como:soup.find("h1")/soup.find_all("a")/ soup.select("div.classe")
 
-for pagina in range(1, paginaLimite + 1):
+for pagina in range(1, paginaLimite + 1): ### esse loop vai percorer do número 1 atá a pag. limite. O + 1 é necesssário pq a dunção range em Python não inclui o último número. 
     url = f"{baseURL}?page={pagina}"
     print(f"Colentando da página{pagina}\nEndereço: {url}\n")
     resposta = requests.get(url, headers=headers)
@@ -35,12 +38,12 @@ for pagina in range(1, paginaLimite + 1):
     if resposta .status_code!=200:
         print(f'Erro ao carregar a pagina {pagina}).\nCodigo do erro é: {resposta.status_code}')
         continue 
-    
+         
+# Procura todos os div que representam cartões de filmes na página principal.
     cards = soup.find_all("div", class_="card entity-card entity-card-list cf")
-
     for card in cards:
         try: 
-            # capturarmp título e o link da página do filme
+            # captura o título e o link da página do filme
             titulo_tag = card.find( "a", class_= "meta-title-link")
             titulo = titulo_tag.text.strip() if titulo_tag else "N/A"
             link = "https://www.adorocinema.com/" + titulo_tag ['href'] if titulo_tag else None 
