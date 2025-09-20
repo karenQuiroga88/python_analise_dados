@@ -114,12 +114,12 @@ def consultar():
 
     return render_template_string(f'''
         <h1> Consulta de Tabelas </h1>
-        <form method="POST'>
+        <form method='POST'>
             <label for = "campo_tabela"> Escolha uma tabela:</label>
-            <select name = "campo tabela">
+            <select name = "campo_tabela">
                 <option value = "inadimplencia">Inadimplência </option>
                 <option value = "selic"> Taxa Selic </option>
-                <option value = "usuario"> Taxa Selic </option>
+                <option value = "usuario"> usuário </option>
                                   
             </select>
             <input type="submit" value="Consultar">
@@ -128,6 +128,166 @@ def consultar():
             <a href= "{rotas[0]}"> Voltar </a>
 ''')
 
+@app.route(rotas[4],methods =['POST','GET'])
+def editar_inadimplencia(): 
+
+    if request.method == "POST":
+        mes = request.form.get('campo_mes')
+        novo_valor = request.form.get('campo_valor')
+        try:
+            novo_valor = float(novo_valor)
+        except:
+            return jsonify({f"Erro": "Valor inválido"}),418
+        with sqlite3.connect(f'{pasta}{caminhoBd}') as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                    UPDATE Inadimplencia
+                    SET Inadimplencia = ?
+                    WHERE MES = ?
+        ''', (novo_valor, mes))
+        conn.commit()
+        return jsonify({"Mensagem": f"Valor atualizado para o {mes}"})
+        
+
+    return render_template_string('''
+        <h1> Editar Inadimplencia </h1>
+            <form method='POST'
+                <label for "campo_mes"> Mês (AAAA-MM) </label>
+                <input type = "text" name="campo_mes"><br>
+                                  
+                <label for="campo_valor"> Novo valor </label>
+                <input type = "text" name="campo_valor"><br>
+                                  
+                <input type = "submit" value="Salvar">
+                                  
+            </form>   
+            <br>
+            <a href= "{rotas[0]}"> Voltar </a>                                                                        
+''')
+
+
+@app.route(rotas[5])
+def correlacao():
+     with sqlite3.connect(f'{pasta}{caminhoBd}') as conn:
+         inad_df = pd.read_sql_query("SELECT * FROM inadimplencia",conn)
+         selic_df = pd.read_sql_query("SELECT * FROM selic",conn)
+
+    # realiza uma junção entre os dois dataframes usando a coluna mes
+     merged = pd.merge(inad_df,selic_df, on='mes')
+
+    # calcula o coeficiente da correlação de perason entre as duas variaveis
+     correl = merged['inadimplencia'].corr(merged['selic_diaria'])
+
+     #registra as variáveis para regressão linear onde
+     # y é a variável independente e y e variável dependente
+
+     x = merged['selic_diaria']
+     y = merged['inadimplencia']
+
+    # calcula o coeficiente da reta de regressão linear onde M é a inclinação e B é a interseção
+     m,b = np.polyfit(x,y,1)
+
+# Gráficos 
+     fig = go.Figure()
+     fig.add_trace(go.Scatter(
+        x= x,
+        y= y,
+        mode= 'markers',
+        name="Inadimplencia X Selic",
+        marker=dict(
+            color = 'rgba(0, 123, 255, 0.8)',
+            size = 12,
+            line = dict(width=2, color='white'),
+            symbol= 'circle'
+        ),
+        hovertemplate= 'Selic: %{x:.2f}% <> Inadimplencia: %{y:.2f}% <extra></extra>'
+))
+     fig.add_trace(go.Scatter(
+         x=x,
+         y= m * x + b,
+         mode = 'lines',
+         dec = dict(
+             color= 'rgba(255, 53, 69, 1)',
+             width = 4, 
+             dash = 'dot'
+         )
+     ))   
+     fig.update_layout(
+             title={
+            'text': f'<b>Correlação entre Selic e Inadimplência</b><br><span style="font-size:16px;">Coeficiente de Correlação: {correl:.2f}</span>',
+            'y': 0.95,
+            'x': 0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+
+    xaxis_title = dict(
+        text = 'SELIC Média Mensal (%)',
+        font = dict(
+            size=18,
+            family= 'Arial',
+            color = 'gray'
+            )
+    ),
+    yaxis_title = dict(
+        text = 'Inadimplencia (%)',
+        font = dict(
+            size=14,
+            family= 'Arial',
+            color = 'black'
+            )
+    ),
+    xaxis = dict(
+         tickfont = dict(
+            size=14,
+            family='Arial',
+            color='black'
+        ),
+        gridcolor = 'lightgray'
+    ),
+    yaxis= dict(
+        tickfont = dict(
+            size=14,
+            family='Arial',
+            color='black'
+        ),
+        gridcolor = 'lightgray'
+    ),
+    font = dict(
+            size=14,
+            family='Arial',
+            color='black'
+    ),
+    legend = dict(
+        orintation = 'h',
+        yanchor = 'bottom',
+        xanchor = 'center',
+        x = 0.5,
+        y = 1.05,
+        bgcolor = 'rgba(0,0,0,0)',
+        borderwidth = 0        
+    ),
+    margin = dict(l=60, r=60, t=120, b=60),
+    plot_bgcolor = "#faf8fa",
+    paper_bgcolor = 'white'
+    )
+     graph_html = fig.to_html(
+         full_html = False,
+         include_plotlyjs = 'cdn'
+     )
+     return render_template_string('''
+        <html>
+            <head>
+                <title> Correlação Selic X Inadimplencia</title>
+             <head>
+             <body>
+                <h1>Correlação Selic X Inadimplencia</h1>
+                <div> {{grafico|safe}}</div>
+                <br>
+                <a href={{ voltar }}" Voltar </a>
+            </body>
+            </html> 
+    ''', grafico = graph_html, voltar = rotas[0])
 
 if __name__ == '__main__':
     init_db()
@@ -136,6 +296,8 @@ if __name__ == '__main__':
         host = config.FLASK_HOST,
         port = config.FLASK_PORT
     )
+
+
 
 
 
