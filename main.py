@@ -67,7 +67,7 @@ def upload():
         header = 0 
     )
     selic_df = pd.read_csv(
-        inad_file,
+        selic_file,
         sep = ";",
         names = ['data', 'selic_diaria'],
         header = 0 
@@ -77,7 +77,7 @@ def upload():
         format='%d/%m/%Y'
     )
     selic_df['data'] = pd.to_datetime(
-        inad_df['data'],
+        selic_df['data'],
         format='%d/%m/%Y'
     )
 
@@ -136,4 +136,6 @@ if __name__ == '__main__':
         host = config.FLASK_HOST,
         port = config.FLASK_PORT
     )
+
+
 
